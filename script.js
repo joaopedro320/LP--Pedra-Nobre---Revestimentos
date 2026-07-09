@@ -112,7 +112,6 @@ document.querySelectorAll('[data-track]').forEach(function(el){
 
   var lb = document.getElementById('lightbox');
   var lbImg = document.getElementById('lbImg');
-  var lbCaption = document.getElementById('lbCaption');
   var lbCounter = document.getElementById('lbCounter');
   var lbClose = document.getElementById('lbClose');
   var lbPrev = document.getElementById('lbPrev');
@@ -137,7 +136,6 @@ document.querySelectorAll('[data-track]').forEach(function(el){
     var cap = el.getAttribute('data-caption') || '';
     lbImg.src = full;
     lbImg.alt = cap;
-    lbCaption.textContent = cap;
     lbCounter.textContent = (String(current+1).padStart(2,'0')) + ' / ' + (String(items.length).padStart(2,'0'));
   }
   function next(){ current = (current+1) % items.length; render(); }
