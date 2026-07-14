@@ -110,6 +110,32 @@ document.querySelectorAll('[data-track]').forEach(function(el){
   prevBtn.addEventListener('click', function(){ track.scrollBy({left:-scrollAmount()*2, behavior:'smooth'}); });
   nextBtn.addEventListener('click', function(){ track.scrollBy({left:scrollAmount()*2, behavior:'smooth'}); });
 
+  // Autoplay sutil do carrossel (pausa ao interagir)
+  var autoplayTimer = null;
+  var autoplayDelay = 4200;
+  function startAutoplay(){
+    stopAutoplay();
+    autoplayTimer = setInterval(function(){
+      var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+      if(atEnd){
+        track.scrollTo({left:0, behavior:'smooth'});
+      } else {
+        track.scrollBy({left:scrollAmount(), behavior:'smooth'});
+      }
+    }, autoplayDelay);
+  }
+  function stopAutoplay(){
+    if(autoplayTimer){ clearInterval(autoplayTimer); autoplayTimer = null; }
+  }
+  track.addEventListener('mouseenter', stopAutoplay);
+  track.addEventListener('touchstart', stopAutoplay, {passive:true});
+  track.addEventListener('mouseleave', startAutoplay);
+  prevBtn.addEventListener('click', stopAutoplay);
+  nextBtn.addEventListener('click', stopAutoplay);
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    startAutoplay();
+  }
+
   var lb = document.getElementById('lightbox');
   var lbImg = document.getElementById('lbImg');
   var lbCounter = document.getElementById('lbCounter');
@@ -218,4 +244,36 @@ document.querySelectorAll('[data-track]').forEach(function(el){
 
     btn.textContent = 'Enviado! Abrindo WhatsApp…';
   });
+})();
+// ---------- CONTADOR ANIMADO (stats) ----------
+(function(){
+  var counters = Array.prototype.slice.call(document.querySelectorAll('[data-count]'));
+  if(!counters.length) return;
+  var done = {};
+  var countIo = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting && !done[entry.target]){
+        done[entry.target] = true;
+        var el = entry.target;
+        var target = parseInt(el.getAttribute('data-count'), 10) || 0;
+        var suffix = el.getAttribute('data-suffix') || '';
+        var duration = 1400;
+        var start = null;
+        function step(ts){
+          if(!start) start = ts;
+          var progress = Math.min((ts - start) / duration, 1);
+          var eased = 1 - Math.pow(1 - progress, 3);
+          el.textContent = Math.round(eased * target) + suffix;
+          if(progress < 1){
+            requestAnimationFrame(step);
+          } else {
+            el.textContent = target + suffix;
+          }
+        }
+        requestAnimationFrame(step);
+        countIo.unobserve(el);
+      }
+    });
+  }, {threshold:0.4});
+  counters.forEach(function(el){ countIo.observe(el); });
 })();

@@ -75,6 +75,13 @@ p{margin:0;}
   transform:translateY(10px);
   transition:opacity .8s var(--ease), transform .8s var(--ease);
 }
+.mark-logo{
+  height:30px;
+  width:auto;
+  max-width:52px;
+  object-fit:contain;
+  display:block;
+}
 .reveal.in-view .mark,
 .mark.in-view{opacity:1;transform:translateY(0);}
 
@@ -216,6 +223,14 @@ section{position:relative;}
   background-image:url('images/hero.jpg');
   background-size:cover;
   background-position:center 38%;
+  animation:heroZoom 22s ease-in-out infinite alternate;
+}
+@keyframes heroZoom{
+  0%{transform:scale(1);}
+  100%{transform:scale(1.08);}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero-bg{animation:none;}
 }
 .hero-bg::after{
   content:'';
@@ -650,10 +665,9 @@ section{position:relative;}
 .form-section h2{color:var(--paper);}
 .form-wrap{
   display:grid;
-  gap:48px;
-  margin-top:40px;
+  gap:32px;
 }
-@media(min-width:960px){.form-wrap{grid-template-columns:.85fr 1.15fr;gap:70px;}}
+@media(min-width:960px){.form-wrap{grid-template-columns:.85fr 1.15fr;gap:70px;align-items:start;}}
 .form-side p.body-text{color:rgba(251,251,251,.72);}
 .form-side .btn{margin-top:24px;}
 .form-note{
@@ -878,3 +892,39 @@ footer{
 }
 
 ::selection{background:var(--gold);color:var(--ink);}
+
+/* ---------- MARQUEE (faixa de movimento) ---------- */
+.marquee-band{
+  background:var(--ink);
+  color:var(--paper);
+  overflow:hidden;
+  padding:16px 0;
+  white-space:nowrap;
+}
+.marquee-track{
+  display:inline-flex;
+  gap:48px;
+  animation:marqueeScroll 22s linear infinite;
+  will-change:transform;
+}
+.marquee-track span{
+  font-family:var(--font-display, inherit);
+  font-size:.92rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--gold);
+  padding-right:48px;
+  position:relative;
+}
+.marquee-track span::after{
+  content:'✦';
+  margin-left:48px;
+  color:rgba(251,251,251,.4);
+}
+@keyframes marqueeScroll{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
+@media(prefers-reduced-motion:reduce){
+  .marquee-track{animation:none;}
+}
