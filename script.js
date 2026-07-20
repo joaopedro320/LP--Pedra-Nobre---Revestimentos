@@ -63,25 +63,64 @@ document.querySelectorAll('[data-track]').forEach(function(el){
 // ---------- CARROSSEL + LIGHTBOX ----------
 (function(){
   var track = document.getElementById('carTrack');
-  var items = Array.prototype.slice.call(track.querySelectorAll('.car-item'));
-  var prevBtn = document.getElementById('carPrev');
-  var nextBtn = document.getElementById('carNext');
-  var dotsWrap = document.getElementById('carDots');
-  var counterCurrent = document.getElementById('carCounterCurrent');
-  var counterTotal = document.getElementById('carCounterTotal');
+  var items = Array.prototype.slice.call(track.querySelectorAll('.car-full-item'));
+  var scrollbar = document.getElementById('carScrollThumb');
+  var scrollbarTrack = scrollbar ? scrollbar.parentElement : null;
 
-  counterTotal.textContent = String(items.length).padStart(2,'0');
-  items.forEach(function(_, i){
-    var dot = document.createElement('span');
-    if(i === 0) dot.classList.add('active');
-    dot.addEventListener('click', function(){
-      track.scrollTo({left: items[i].offsetLeft - track.offsetLeft, behavior:'smooth'});
-    });
-    dotsWrap.appendChild(dot);
+  function updateScrollbar(){
+    if(!scrollbar || !scrollbarTrack) return;
+    var maxScroll = track.scrollWidth - track.clientWidth;
+    var progress = maxScroll > 0 ? track.scrollLeft / maxScroll : 0;
+    var trackH = scrollbarTrack.clientHeight;
+    var thumbH = Math.max(28, trackH / items.length);
+    scrollbar.style.height = thumbH + 'px';
+    scrollbar.style.top = (progress * (trackH - thumbH)) + 'px';
+  }
+  var scrollTicking = false;
+  track.addEventListener('scroll', function(){
+    if(!scrollTicking){
+      window.requestAnimationFrame(function(){ updateScrollbar(); scrollTicking = false; });
+      scrollTicking = true;
+    }
+  }, {passive:true});
+  window.addEventListener('resize', updateScrollbar);
+  updateScrollbar();
+
+  // drag-to-scroll (mouse)
+  var isDown = false, startX = 0, startScroll = 0, dragged = false;
+  track.addEventListener('mousedown', function(e){
+    isDown = true; dragged = false;
+    startX = e.pageX; startScroll = track.scrollLeft;
+    track.classList.add('dragging');
   });
-  var dots = Array.prototype.slice.call(dotsWrap.children);
+  window.addEventListener('mousemove', function(e){
+    if(!isDown) return;
+    var dx = e.pageX - startX;
+    if(Math.abs(dx) > 6) dragged = true;
+    track.scrollLeft = startScroll - dx;
+  });
+  window.addEventListener('mouseup', function(){
+    isDown = false;
+    track.classList.remove('dragging');
+  });
+  // convert vertical wheel to horizontal scroll
+  track.addEventListener('wheel', function(e){
+    if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){
+      track.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }, {passive:false});
 
-  function activeIndexFromScroll(){
+  // ---------- AUTOPLAY ----------
+  var AUTOPLAY_DELAY = 4200;
+  var autoplayTimer = null;
+  var autoplayPaused = false;
+
+  function itemWidth(){
+    var el = track.querySelector('.car-full-item');
+    return el ? el.getBoundingClientRect().width : track.clientWidth;
+  }
+  function currentIndex(){
     var trackLeft = track.getBoundingClientRect().left;
     var closest = 0, closestDist = Infinity;
     items.forEach(function(el, i){
@@ -90,51 +129,44 @@ document.querySelectorAll('[data-track]').forEach(function(el){
     });
     return closest;
   }
-  function updateProgress(){
-    var idx = activeIndexFromScroll();
-    dots.forEach(function(d,i){ d.classList.toggle('active', i===idx); });
-    counterCurrent.textContent = String(idx+1).padStart(2,'0');
+  function autoplayTick(){
+    if(autoplayPaused || lb.classList.contains('open') || document.hidden) return;
+    var idx = currentIndex();
+    var nextIdx = (idx + 1) % items.length;
+    var target = nextIdx === 0 ? 0 : items[nextIdx].offsetLeft - track.offsetLeft;
+    track.scrollTo({left: target, behavior:'smooth'});
   }
-  var scrollTicking = false;
-  track.addEventListener('scroll', function(){
-    if(!scrollTicking){
-      window.requestAnimationFrame(function(){ updateProgress(); scrollTicking = false; });
-      scrollTicking = true;
-    }
-  }, {passive:true});
-
-  function scrollAmount(){
-    var item = track.querySelector('.car-item');
-    return item ? item.getBoundingClientRect().width + 14 : 300;
-  }
-  prevBtn.addEventListener('click', function(){ track.scrollBy({left:-scrollAmount()*2, behavior:'smooth'}); });
-  nextBtn.addEventListener('click', function(){ track.scrollBy({left:scrollAmount()*2, behavior:'smooth'}); });
-
-  // Autoplay sutil do carrossel (pausa ao interagir)
-  var autoplayTimer = null;
-  var autoplayDelay = 4200;
   function startAutoplay(){
     stopAutoplay();
-    autoplayTimer = setInterval(function(){
-      var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
-      if(atEnd){
-        track.scrollTo({left:0, behavior:'smooth'});
-      } else {
-        track.scrollBy({left:scrollAmount(), behavior:'smooth'});
-      }
-    }, autoplayDelay);
+    autoplayTimer = window.setInterval(autoplayTick, AUTOPLAY_DELAY);
   }
   function stopAutoplay(){
-    if(autoplayTimer){ clearInterval(autoplayTimer); autoplayTimer = null; }
+    if(autoplayTimer){ window.clearInterval(autoplayTimer); autoplayTimer = null; }
   }
-  track.addEventListener('mouseenter', stopAutoplay);
-  track.addEventListener('touchstart', stopAutoplay, {passive:true});
-  track.addEventListener('mouseleave', startAutoplay);
-  prevBtn.addEventListener('click', stopAutoplay);
-  nextBtn.addEventListener('click', stopAutoplay);
-  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    startAutoplay();
+  function pauseAutoplayTemporarily(){
+    autoplayPaused = true;
+    window.clearTimeout(track._resumeTimer);
+    track._resumeTimer = window.setTimeout(function(){ autoplayPaused = false; }, 4500);
   }
+
+  track.addEventListener('mouseenter', function(){ autoplayPaused = true; });
+  track.addEventListener('mouseleave', function(){ autoplayPaused = false; });
+  track.addEventListener('touchstart', pauseAutoplayTemporarily, {passive:true});
+  track.addEventListener('mousedown', function(){ autoplayPaused = true; });
+  window.addEventListener('mouseup', function(){ if(!track.matches(':hover')) pauseAutoplayTemporarily(); });
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) autoplayPaused = false; });
+
+  var carSection = track.closest('section');
+  var autoplayStarted = false;
+  var carIO = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting && !autoplayStarted){
+        autoplayStarted = true;
+        startAutoplay();
+      }
+    });
+  }, {threshold:.3});
+  if(carSection) carIO.observe(carSection);
 
   var lb = document.getElementById('lightbox');
   var lbImg = document.getElementById('lbImg');
@@ -168,7 +200,7 @@ document.querySelectorAll('[data-track]').forEach(function(el){
   function prev(){ current = (current-1+items.length) % items.length; render(); }
 
   items.forEach(function(el, i){
-    el.addEventListener('click', function(){ openLightbox(i); });
+    el.addEventListener('click', function(){ if(!dragged) openLightbox(i); });
   });
   lbClose.addEventListener('click', closeLightbox);
   lbNext.addEventListener('click', next);
@@ -244,36 +276,4 @@ document.querySelectorAll('[data-track]').forEach(function(el){
 
     btn.textContent = 'Enviado! Abrindo WhatsApp…';
   });
-})();
-// ---------- CONTADOR ANIMADO (stats) ----------
-(function(){
-  var counters = Array.prototype.slice.call(document.querySelectorAll('[data-count]'));
-  if(!counters.length) return;
-  var done = {};
-  var countIo = new IntersectionObserver(function(entries){
-    entries.forEach(function(entry){
-      if(entry.isIntersecting && !done[entry.target]){
-        done[entry.target] = true;
-        var el = entry.target;
-        var target = parseInt(el.getAttribute('data-count'), 10) || 0;
-        var suffix = el.getAttribute('data-suffix') || '';
-        var duration = 1400;
-        var start = null;
-        function step(ts){
-          if(!start) start = ts;
-          var progress = Math.min((ts - start) / duration, 1);
-          var eased = 1 - Math.pow(1 - progress, 3);
-          el.textContent = Math.round(eased * target) + suffix;
-          if(progress < 1){
-            requestAnimationFrame(step);
-          } else {
-            el.textContent = target + suffix;
-          }
-        }
-        requestAnimationFrame(step);
-        countIo.unobserve(el);
-      }
-    });
-  }, {threshold:0.4});
-  counters.forEach(function(el){ countIo.observe(el); });
 })();
