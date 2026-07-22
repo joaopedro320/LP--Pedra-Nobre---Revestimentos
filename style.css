@@ -647,6 +647,8 @@ section{position:relative;}
   margin-top:40px;
 }
 @media(min-width:960px){.form-wrap{grid-template-columns:.85fr 1.15fr;gap:70px;}}
+.form-wrap.form-wrap-single{grid-template-columns:1fr;max-width:720px;}
+@media(min-width:960px){.form-wrap.form-wrap-single{grid-template-columns:1fr;}}
 .form-side p.body-text{color:rgba(251,251,251,.72);}
 .form-side .btn{margin-top:24px;}
 .form-note{
